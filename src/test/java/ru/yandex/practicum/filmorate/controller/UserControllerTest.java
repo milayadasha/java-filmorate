@@ -10,8 +10,7 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 class UserControllerTest {
     private static final String USER_NAME = "Вася";
@@ -26,7 +25,7 @@ class UserControllerTest {
 
     private static final LocalDate USER_BIRTHDAY = LocalDate.of(1992, Month.DECEMBER, 12);
     private static final LocalDate USER_BIRTHDAY_2 = LocalDate.of(1982, Month.OCTOBER, 22);
-    private static final LocalDate USER_BIRTHDAY_INCORRECT = LocalDate.of(2025, Month.DECEMBER, 12);
+    private static final LocalDate USER_BIRTHDAY_INCORRECT = LocalDate.of(3035, Month.DECEMBER, 12);
 
     UserController userController;
 
@@ -47,9 +46,10 @@ class UserControllerTest {
         //when
         userController.addUser(user);
         userController.addUser(user2);
-        List<User> usersByController = userController.getUsers().stream().toList();
+        List<User> usersByController = userController.getUsers().getBody();
 
         //then
+        assertNotNull(usersByController, "В контроллере нет пользователей");
         assertEquals(2, usersByController.size(), "В контроллере не верное количество пользователей");
         assertEquals(USER_NAME, usersByController.get(0).getName(),
                 "В контроллере не корректный 1-ый пользователь");
@@ -65,9 +65,10 @@ class UserControllerTest {
 
         //when
         userController.addUser(user);
-        List<User> usersByController = userController.getUsers().stream().toList();
+        List<User> usersByController = userController.getUsers().getBody();
 
         //then
+        assertNotNull(usersByController,"В контроллере нет пользователей");
         assertEquals(1, usersByController.size(), "В контроллере не верное количество пользователей");
         assertEquals(USER_NAME, usersByController.get(0).getName(), "В контроллере некорректный пользователь");
     }
@@ -93,9 +94,10 @@ class UserControllerTest {
 
         //when
         userController.addUser(user);
-        List<User> usersByController = userController.getUsers().stream().toList();
+        List<User> usersByController = userController.getUsers().getBody();
 
         //then
+        assertNotNull(usersByController,"В контроллере нет пользователей");
         assertEquals(1, usersByController.size(), "В контроллере не верное количество пользователей");
         assertEquals(USER_LOGIN, usersByController.get(0).getName(), "Имя пользователя не равно логину");
     }
@@ -117,15 +119,16 @@ class UserControllerTest {
     @DisplayName("При обновлении пользователя с корректными полями контроллер должен обновить его")
     void test_updateUser_WhenCorrectFields_ShouldUpdateInController() {
         //given
-        User user = userController.addUser(User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
-                .birthday(USER_BIRTHDAY).build());
+        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        userController.addUser(user);
 
         //when
         User updateUser = user.toBuilder().name(USER_NAME_2).build();
         userController.updateUser(updateUser);
-        List<User> usersByController = userController.getUsers().stream().toList();
+        List<User> usersByController = userController.getUsers().getBody();
 
         //then
+        assertNotNull(usersByController,"В контроллере нет пользователей");
         assertEquals(1, usersByController.size(), "В контроллере не верное количество пользователей");
         assertEquals(USER_NAME_2, usersByController.get(0).getName(), "В контроллере некорректный пользователь");
     }
@@ -134,8 +137,8 @@ class UserControllerTest {
     @DisplayName("При обновлении пользователя с некорректным логином контроллер должен выбросить ошибку")
     void test_updateUser_WhenIncorrectLogin_ShouldThrowsError() {
         //given && when
-        User user = userController.addUser(User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
-                .birthday(USER_BIRTHDAY).build());
+        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        userController.addUser(user);
 
         //when
         User updateUser = user.toBuilder().login(USER_LOGIN_INCORRECT).build();
@@ -150,15 +153,16 @@ class UserControllerTest {
     @DisplayName("При обновлении пользователя без имени в контроллере имя будет равно логину")
     void test_updateUser_WhenNameIsNull_ShouldReturnNameWithLoginValue() {
         //given && when
-        User user = userController.addUser(User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
-                .birthday(USER_BIRTHDAY).build());
+        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        userController.addUser(user);
 
         //when
         User updateUser = user.toBuilder().name("").build();
         userController.updateUser(updateUser);
-        List<User> usersByController = userController.getUsers().stream().toList();
+        List<User> usersByController = userController.getUsers().getBody();
 
         //then
+        assertNotNull(usersByController,"В контроллере нет пользователей");
         assertEquals(1, usersByController.size(), "В контроллере не верное количество пользователей");
         assertEquals(USER_LOGIN, usersByController.get(0).getName(), "Имя пользователя не равно логину");
     }
@@ -167,8 +171,8 @@ class UserControllerTest {
     @DisplayName("При обновлении пользователя с датой рождения в будущем контроллер должен выбросить ошибку")
     void test_updateUser_WhenBirthdayInFuture_ShouldThrowsError() {
         //given && when
-        User user = userController.addUser(User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
-                .birthday(USER_BIRTHDAY).build());
+        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        userController.addUser(user);
 
         //when
         User updateUser = user.toBuilder().birthday(USER_BIRTHDAY_INCORRECT).build();

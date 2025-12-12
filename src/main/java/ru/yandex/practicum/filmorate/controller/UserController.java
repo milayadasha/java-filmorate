@@ -3,6 +3,8 @@ package ru.yandex.practicum.filmorate.controller;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
@@ -10,6 +12,7 @@ import ru.yandex.practicum.filmorate.model.User;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 @RestController
 @RequestMapping("/users")
@@ -21,8 +24,8 @@ public class UserController {
      * Возвращает всех пользователей в виде списка
      */
     @GetMapping
-    public ArrayList<User> getUsers() {
-        return new ArrayList<>(users.values());
+    public ResponseEntity<List<User>> getUsers() {
+        return ResponseEntity.ok(new ArrayList<>(users.values()));
     }
 
     /**
@@ -34,7 +37,7 @@ public class UserController {
      * @return копия созданного пользователя с присвоенным ID
      */
     @PostMapping
-    public User addUser(@Valid @RequestBody User newUser) {
+    public ResponseEntity<User> addUser(@Valid @RequestBody User newUser) {
         try {
             checkIsValidUser(newUser);
         } catch (ValidationException exception) {
@@ -48,7 +51,7 @@ public class UserController {
         users.put(newUser.getId(), newUser);
         log.info("Пользователь {} добавлен", newUser.getId());
 
-        return newUser;
+        return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
     }
 
     /**
@@ -60,7 +63,7 @@ public class UserController {
      * @return копия обновлённого пользователя
      */
     @PutMapping
-    public User updateUser(@Valid @RequestBody User updatedUser) {
+    public ResponseEntity<User> updateUser(@Valid @RequestBody User updatedUser) {
         try {
             checkIsValidUser(updatedUser);
         } catch (ValidationException exception) {
@@ -79,7 +82,7 @@ public class UserController {
         users.put(updatedUser.getId(), updatedUser);
         log.info("Пользователь {} обновлён", updatedUser.getId());
 
-        return updatedUser;
+        return ResponseEntity.ok(updatedUser);
     }
 
     /**

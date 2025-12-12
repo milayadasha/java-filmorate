@@ -3,6 +3,8 @@ package ru.yandex.practicum.filmorate.controller;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
@@ -11,6 +13,7 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 @RestController
 @RequestMapping("/films")
@@ -24,8 +27,8 @@ public class FilmController {
      * Возвращает все фильмы в виде списка
      */
     @GetMapping
-    public ArrayList<Film> getFilms() {
-        return new ArrayList<>(films.values());
+    public ResponseEntity<List<Film>> getFilms() {
+        return ResponseEntity.ok(new ArrayList<>(films.values()));
     }
 
     /**
@@ -37,7 +40,7 @@ public class FilmController {
      * @return копия созданного фильма с присвоенным ID
      */
     @PostMapping
-    public Film addFilm(@Valid @RequestBody Film newFilm) {
+    public ResponseEntity<Film> addFilm(@Valid @RequestBody Film newFilm) {
         try {
             checkIsValidFilm(newFilm);
         } catch (ValidationException exception) {
@@ -50,7 +53,7 @@ public class FilmController {
         films.put(newFilm.getId(), newFilm);
         log.info("Фильм {} добавлен", newFilm.getId());
 
-        return newFilm;
+        return ResponseEntity.status(HttpStatus.CREATED).body(newFilm);
     }
 
     /**
@@ -62,7 +65,7 @@ public class FilmController {
      * @return копия обновлённого фильма
      */
     @PutMapping
-    public Film updateFilm(@Valid @RequestBody Film updatedFilm) {
+    public ResponseEntity<Film> updateFilm(@Valid @RequestBody Film updatedFilm) {
         try {
             checkIsValidFilm(updatedFilm);
         } catch (ValidationException exception) {
@@ -81,7 +84,7 @@ public class FilmController {
         films.put(updatedFilm.getId(), updatedFilm);
         log.info("Фильм {} обновлён", updatedFilm.getId());
 
-        return updatedFilm;
+        return ResponseEntity.ok(updatedFilm);
     }
 
     /**

@@ -10,8 +10,7 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 class FilmControllerTest {
     private static final String FILM_NAME = "Фильм";
@@ -49,9 +48,10 @@ class FilmControllerTest {
         //when
         filmController.addFilm(film);
         filmController.addFilm(film2);
-        List<Film> filmsByController = filmController.getFilms().stream().toList();
+        List<Film> filmsByController = filmController.getFilms().getBody();
 
         //then
+        assertNotNull(filmsByController, "В контроллере нет фильмов");
         assertEquals(2, filmsByController.size(), "В контроллере не верное количество фильмов");
         assertEquals(FILM_NAME, filmsByController.get(0).getName(), "В контроллере не корректный 1-ый фильм");
         assertEquals(FILM_NAME_2, filmsByController.get(1).getName(), "В контроллере не корректный 2-ой фильм");
@@ -67,9 +67,10 @@ class FilmControllerTest {
 
         //when
         filmController.addFilm(film);
-        List<Film> filmsByController = filmController.getFilms().stream().toList();
+        List<Film> filmsByController = filmController.getFilms().getBody();
 
         //then
+        assertNotNull(filmsByController, "В контроллере нет фильмов");
         assertEquals(1, filmsByController.size(), "В контроллере не верное количество фильмов");
         assertEquals(FILM_NAME, filmsByController.get(0).getName(), "В контроллере некорректный фильм");
     }
@@ -120,16 +121,17 @@ class FilmControllerTest {
     @DisplayName("При обновлении фильма с корректными данными контроллер должен обновить его")
     void test_updateFilm_WhenCorrectFields_ShouldUpdateInController() {
         //given
-        Film film = filmController.addFilm(Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION)
-                .releaseDate(FILM_RELEASE_DATE)
-                .duration(FILM_DURATION).build());
+        Film film = Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION).releaseDate(FILM_RELEASE_DATE)
+                .duration(FILM_DURATION).build();
+        filmController.addFilm(film);
 
         //when
         Film updatedFilm = film.toBuilder().name(FILM_NAME_2).build();
         filmController.updateFilm(updatedFilm);
-        List<Film> filmsByController = filmController.getFilms().stream().toList();
+        List<Film> filmsByController = filmController.getFilms().getBody();
 
         //then
+        assertNotNull(filmsByController, "В контроллере нет фильмов");
         assertEquals(1, filmsByController.size(), "В контроллере не верное количество фильмов");
         assertEquals(FILM_NAME_2, filmsByController.get(0).getName(), "В контроллере некорректный фильм");
     }
@@ -138,9 +140,9 @@ class FilmControllerTest {
     @DisplayName("При обновлении фильма с некорректным описанием контроллер должен выбросить ошибку")
     void test_updateFilm_WhenIncorrectDescription_ShouldThrowsError() {
         //given
-        Film film = filmController.addFilm(Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION)
-                .releaseDate(FILM_RELEASE_DATE)
-                .duration(FILM_DURATION).build());
+        Film film = Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION).releaseDate(FILM_RELEASE_DATE)
+                .duration(FILM_DURATION).build();
+        filmController.addFilm(film);
 
         //when
         Film updatedFilm = film.toBuilder().description(FILM_DESCRIPTION_INCORRECT).build();
@@ -155,9 +157,9 @@ class FilmControllerTest {
     @DisplayName("При обновлении фильма с некорректной длительностью контроллер должен выбросить ошибку")
     void test_updateFilm_WhenIncorrectDuration_ShouldThrowsError() {
         //given
-        Film film = filmController.addFilm(Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION)
-                .releaseDate(FILM_RELEASE_DATE)
-                .duration(FILM_DURATION).build());
+        Film film = Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION).releaseDate(FILM_RELEASE_DATE)
+                .duration(FILM_DURATION).build();
+        filmController.addFilm(film);
 
         //when
         Film updatedFilm = film.toBuilder().duration(FILM_DURATION_INCORRECT).build();
@@ -172,9 +174,9 @@ class FilmControllerTest {
     @DisplayName("При добавлении фильма с некорректной датой релиза контроллер должен выбросить ошибку")
     void test_updateFilm_WhenIncorrectReleaseDate_ShouldThrowsError() {
         //given
-        Film film = filmController.addFilm(Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION)
-                .releaseDate(FILM_RELEASE_DATE)
-                .duration(FILM_DURATION).build());
+        Film film = Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION).releaseDate(FILM_RELEASE_DATE)
+                .duration(FILM_DURATION).build();
+        filmController.addFilm(film);
 
         //when
         Film updatedFilm = film.toBuilder().releaseDate(FILM_RELEASE_DATE_INCORRECT).build();
