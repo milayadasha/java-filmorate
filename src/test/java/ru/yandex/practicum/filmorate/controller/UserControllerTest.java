@@ -82,7 +82,7 @@ class UserControllerTest {
         List<User> usersByController = userController.getUsers().getBody();
 
         //then
-        assertNotNull(usersByController,"В контроллере нет пользователей");
+        assertNotNull(usersByController, "В контроллере нет пользователей");
         assertEquals(1, usersByController.size(), "В контроллере не верное количество пользователей");
         assertEquals(USER_NAME, usersByController.get(0).getName(), "В контроллере некорректный пользователь");
     }
@@ -111,7 +111,7 @@ class UserControllerTest {
         List<User> usersByController = userController.getUsers().getBody();
 
         //then
-        assertNotNull(usersByController,"В контроллере нет пользователей");
+        assertNotNull(usersByController, "В контроллере нет пользователей");
         assertEquals(1, usersByController.size(), "В контроллере не верное количество пользователей");
         assertEquals(USER_LOGIN, usersByController.get(0).getName(), "Имя пользователя не равно логину");
     }
@@ -142,7 +142,7 @@ class UserControllerTest {
         List<User> usersByController = userController.getUsers().getBody();
 
         //then
-        assertNotNull(usersByController,"В контроллере нет пользователей");
+        assertNotNull(usersByController, "В контроллере нет пользователей");
         assertEquals(1, usersByController.size(), "В контроллере не верное количество пользователей");
         assertEquals(USER_NAME_2, usersByController.get(0).getName(), "В контроллере некорректный пользователь");
     }
@@ -176,7 +176,7 @@ class UserControllerTest {
         List<User> usersByController = userController.getUsers().getBody();
 
         //then
-        assertNotNull(usersByController,"В контроллере нет пользователей");
+        assertNotNull(usersByController, "В контроллере нет пользователей");
         assertEquals(1, usersByController.size(), "В контроллере не верное количество пользователей");
         assertEquals(USER_LOGIN, usersByController.get(0).getName(), "Имя пользователя не равно логину");
     }
@@ -208,7 +208,7 @@ class UserControllerTest {
         User findUser = userController.getUserById(createdUser.getId()).getBody();
 
         //then
-        assertNotNull(findUser,"В контроллере нет пользователей");
+        assertNotNull(findUser, "В контроллере нет пользователей");
         assertEquals(USER_NAME, findUser.getName(), "В контроллере некорректный пользователь");
     }
 
@@ -229,10 +229,10 @@ class UserControllerTest {
         User user2 = User.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2).birthday(USER_BIRTHDAY_2)
                 .build();
         User createdUser1 = userController.addUser(user).getBody();
-        User createdUser2= userController.addUser(user2).getBody();
+        User createdUser2 = userController.addUser(user2).getBody();
 
         //when
-        ResponseEntity<Void> response = userController.addFriend(createdUser1.getId(),createdUser2.getId());
+        ResponseEntity<Void> response = userController.addFriend(createdUser1.getId(), createdUser2.getId());
 
         //then
         assertEquals(HttpStatus.OK, response.getStatusCode(),
@@ -248,7 +248,7 @@ class UserControllerTest {
 
         //then
         assertThrows(NotFoundException.class,
-                () -> userController.addFriend(createdUser1.getId(),USER_ID),
+                () -> userController.addFriend(createdUser1.getId(), USER_ID),
                 "Удалось добавить в друзья не существующего пользователя");
     }
 
@@ -260,11 +260,11 @@ class UserControllerTest {
         User user2 = User.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2).birthday(USER_BIRTHDAY_2)
                 .build();
         User createdUser1 = userController.addUser(user).getBody();
-        User createdUser2= userController.addUser(user2).getBody();
-        userController.addFriend(createdUser1.getId(),createdUser2.getId());
+        User createdUser2 = userController.addUser(user2).getBody();
+        userController.addFriend(createdUser1.getId(), createdUser2.getId());
 
         //when
-        ResponseEntity<Void> response = userController.removeFriend(createdUser1.getId(),createdUser2.getId());
+        ResponseEntity<Void> response = userController.removeFriend(createdUser1.getId(), createdUser2.getId());
 
         //then
         assertEquals(HttpStatus.OK, response.getStatusCode(),
@@ -272,7 +272,7 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("При удалении из друзей несуществующего пользователя контроллер должен выбросить ошибку" )
+    @DisplayName("При удалении из друзей несуществующего пользователя контроллер должен выбросить ошибку")
     void test_removeFriend_WhenOneFriendNotExist_ShouldReturn200() {
         //given && when
         User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
@@ -280,7 +280,7 @@ class UserControllerTest {
 
         //then
         assertThrows(NotFoundException.class,
-                () -> userController.removeFriend(createdUser1.getId(),USER_ID),
+                () -> userController.removeFriend(createdUser1.getId(), USER_ID),
                 "Удалось удалить из друзей несуществующего пользователя");
     }
 
@@ -292,14 +292,14 @@ class UserControllerTest {
         User user2 = User.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2).birthday(USER_BIRTHDAY_2)
                 .build();
         User createdUser1 = userController.addUser(user).getBody();
-        User createdUser2= userController.addUser(user2).getBody();
+        User createdUser2 = userController.addUser(user2).getBody();
 
         //when
-        userController.addFriend(createdUser1.getId(),createdUser2.getId());
+        userController.addFriend(createdUser1.getId(), createdUser2.getId());
         List<User> userFriends = userController.getAllFriends(createdUser1.getId()).getBody();
 
         //then
-        assertNotNull(userFriends,"У пользователя нет друзей");
+        assertNotNull(userFriends, "У пользователя нет друзей");
         assertEquals(USER_NAME_2, userFriends.get(0).getName(), "В друзьях некорректный пользователь");
     }
 
@@ -314,7 +314,7 @@ class UserControllerTest {
         List<User> userFriends = userController.getAllFriends(createdUser1.getId()).getBody();
 
         //then
-        assertNotNull(userFriends,"Список друзей не проинициализировался");
+        assertNotNull(userFriends, "Список друзей не проинициализировался");
         assertEquals(0, userFriends.size(), "Список друзей не пустой");
     }
 
@@ -332,12 +332,12 @@ class UserControllerTest {
         User createdUser3 = userController.addUser(user3).getBody();
 
         //when
-        userController.addFriend(createdUser1.getId(),createdUser3.getId());
-        userController.addFriend(createdUser2.getId(),createdUser3.getId());
-        List<User> commonFriends = userController.getCommonFriends(createdUser1.getId(),createdUser2.getId()).getBody();
+        userController.addFriend(createdUser1.getId(), createdUser3.getId());
+        userController.addFriend(createdUser2.getId(), createdUser3.getId());
+        List<User> commonFriends = userController.getCommonFriends(createdUser1.getId(), createdUser2.getId()).getBody();
 
         //then
-        assertNotNull(commonFriends,"У пользователя нет общих друзей");
+        assertNotNull(commonFriends, "У пользователя нет общих друзей");
         assertEquals(USER_NAME_3, commonFriends.get(0).getName(), "В общих друзьях некорректный пользователь");
     }
 
@@ -355,12 +355,12 @@ class UserControllerTest {
         User createdUser3 = userController.addUser(user3).getBody();
 
         //when
-        userController.addFriend(createdUser1.getId(),createdUser1.getId());
-        userController.addFriend(createdUser2.getId(),createdUser3.getId());
-        List<User> commonFriends = userController.getCommonFriends(createdUser1.getId(),createdUser2.getId()).getBody();
+        userController.addFriend(createdUser1.getId(), createdUser1.getId());
+        userController.addFriend(createdUser2.getId(), createdUser3.getId());
+        List<User> commonFriends = userController.getCommonFriends(createdUser1.getId(), createdUser2.getId()).getBody();
 
         //then
-        assertNotNull(commonFriends,"Список общих друзей не проинициализировался");
+        assertNotNull(commonFriends, "Список общих друзей не проинициализировался");
         assertEquals(0, commonFriends.size(), "Список общих друзей не пустой");
     }
 }
