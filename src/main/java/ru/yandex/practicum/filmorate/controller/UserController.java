@@ -1,122 +1,110 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
+import ru.yandex.practicum.filmorate.service.UserService;
 import java.util.List;
 
 @RestController
 @RequestMapping("/users")
 public class UserController {
-    private static final Logger log = LoggerFactory.getLogger(UserController.class);
-    private final HashMap<Integer, User> users = new HashMap<>();
+    private final UserService userService;
+
+    @Autowired
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
+
+    /**
+     * Возвращает пользователя по id
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<User> getUserById(@PathVariable int id) {
+        return ResponseEntity.ok(userService.getUserById(id));
+    }
 
     /**
      * Возвращает всех пользователей в виде списка
      */
     @GetMapping
     public ResponseEntity<List<User>> getUsers() {
-        return ResponseEntity.ok(new ArrayList<>(users.values()));
+        return ResponseEntity.ok(userService.getUsers());
     }
 
     /**
      * Добавляет нового пользователя.
-     * Проверяет поля пользователя на соответствие.
-     * Если всё хорошо, то создаёт копию переданного пользователя, присваивает уникальный ID и сохраняет в контроллер.
      *
      * @param newUser объект пользователя, который нужно добавить
-     * @return копия созданного пользователя с присвоенным ID
+     * @return ответ, содержащий созданного пользователя с присвоенным ID
      */
     @PostMapping
     public ResponseEntity<User> addUser(@Valid @RequestBody User newUser) {
-        try {
-            checkIsValidUser(newUser);
-        } catch (ValidationException exception) {
-            log.error("Ошибка валидации данных пользователя при добавлении: {}",
-                    exception.getMessage());
-            throw exception;
-        }
-        log.info("Данные пользователя прошли валидацию при добавлении");
-
-        newUser.setId(getNextId());
-        users.put(newUser.getId(), newUser);
-        log.info("Пользователь {} добавлен", newUser.getId());
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
+        User createdUser = userService.addUser(newUser);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
     }
 
     /**
      * Обновляет пользователя.
-     * Проверяет поля переданного пользователя на соответствие.
-     * Если всё хорошо и переданный пользователь существует в контроллере, то создаёт копию и сохраняет в контроллер.
      *
      * @param updatedUser объект пользователя, который нужно обновить
-     * @return копия обновлённого пользователя
+     * @return ответ, содержащий обновлённого пользователя
      */
     @PutMapping
     public ResponseEntity<User> updateUser(@Valid @RequestBody User updatedUser) {
-        try {
-            checkIsValidUser(updatedUser);
-        } catch (ValidationException exception) {
-            log.error("Ошибка валидации данных пользователя {} при обновлении: {}", updatedUser.getId(),
-                    exception.getMessage());
-            throw exception;
-        }
-        log.info("Данные пользователя {} прошли валидацию при обновлении", updatedUser.getId());
-
-        if (!users.containsKey(updatedUser.getId())) {
-            String userNotFound = "Пользователь " + updatedUser.getId() + " для обновления не найден";
-            log.error(userNotFound);
-            throw new ValidationException(userNotFound);
-        }
-
-        users.put(updatedUser.getId(), updatedUser);
-        log.info("Пользователь {} обновлён", updatedUser.getId());
-
-        return ResponseEntity.ok(updatedUser);
+        User savedUser = userService.updateUser(updatedUser);
+        return ResponseEntity.ok(savedUser);
     }
 
     /**
-     * Генерирует следующий Id.
-     * Находит максимальный текущй Id и увеличивает его.
+     * Добавляет пользователя в друзья к другому пользователю
+     *
+     * @param id       идентификатор пользователя, которому нужно добавить друга.
+     * @param friendId идентификатор пользователя, которого нужно добавить в друзья
+     * @return пустой ответ со статусом 200
      */
-    private int getNextId() {
-        int currentMaxId = users.keySet()
-                .stream()
-                .mapToInt(id -> id)
-                .max()
-                .orElse(0);
-        return ++currentMaxId;
+    @PutMapping("/{id}/friends/{friendId}")
+    public ResponseEntity<Void> addFriend(@PathVariable int id, @PathVariable int friendId) {
+        userService.addFriends(id, friendId);
+        return ResponseEntity.ok().build();
     }
 
     /**
-     * Проверяет переданного пользователя на соответствие условиям.
-     * Если не удовлетворяет какой-то проверке, то выбрасывается ошибка
+     * Удаляет пользователя из друзей другого пользователя
+     *
+     * @param id       идентификатор пользователя, у которого нужно удалить друга.
+     * @param friendId идентификатор пользователя, которого нужно удалить из друзей
+     * @return пустой ответ со статусом 200
      */
-    private void checkIsValidUser(User user) throws ValidationException {
-        if (user == null) {
-            throw new ValidationException("Пользователь не найден");
-        }
+    @DeleteMapping("/{id}/friends/{friendId}")
+    public ResponseEntity<Void> removeFriend(@PathVariable int id, @PathVariable int friendId) {
+        userService.removeFriends(id, friendId);
+        return ResponseEntity.ok().build();
+    }
 
-        if (user.getLogin().contains(" ")) {
-            throw new ValidationException("Логин пользователя не может содержать пробел");
-        }
+    /**
+     * Возвращает друзей пользователя по его id.
+     *
+     * @param id идентификатор пользователя.
+     * @return список друзей-пользователей указанного пользователя.
+     */
+    @GetMapping("/{id}/friends")
+    public ResponseEntity<List<User>> getAllFriends(@PathVariable int id) {
+        return ResponseEntity.ok(userService.getUserFriendsById(id));
+    }
 
-        if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
-            throw new ValidationException("Дата рождения не может быть в будущем");
-        }
-
-        if (user.getName() == null || user.getName().isEmpty()) {
-            user.setName(user.getLogin());
-        }
+    /**
+     * Возвращает общих друзей пользователей по их id.
+     *
+     * @param id      идентификатор пользователя, для которого ищем общих друзей.
+     * @param otherId идентификатор пользователя, с кем ищем общих друзей.
+     * @return список общих друзей в виде списка пользователей.
+     */
+    @GetMapping("/{id}/friends/common/{otherId}")
+    public ResponseEntity<List<User>> getCommonFriends(@PathVariable int id, @PathVariable int otherId) {
+        return ResponseEntity.ok(userService.getCommonFriends(id, otherId));
     }
 }

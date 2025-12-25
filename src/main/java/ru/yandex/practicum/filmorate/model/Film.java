@@ -5,14 +5,13 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.Set;
 
-/**
- * Film.
- */
 @Data
 @Builder(toBuilder = true)
 @EqualsAndHashCode(of = { "id" })
 @AllArgsConstructor
+@NoArgsConstructor
 public class Film {
     private int id;
 
@@ -26,4 +25,6 @@ public class Film {
 
     @NotNull
     private Integer duration;
+
+    private Set<Integer> likes;
 }
