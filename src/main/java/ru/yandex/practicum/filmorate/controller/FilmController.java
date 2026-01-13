@@ -1,124 +1,99 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
-
-import java.time.LocalDate;
-import java.time.Month;
-import java.util.ArrayList;
-import java.util.HashMap;
+import ru.yandex.practicum.filmorate.service.FilmService;
 import java.util.List;
 
 @RestController
 @RequestMapping("/films")
 public class FilmController {
-    private static final int FILM_DESCRIPTION_LENGTH = 200;
-    private static final LocalDate EARLIEST_RELEASE_DATE = LocalDate.of(1895, Month.DECEMBER, 28);
-    private static final Logger log = LoggerFactory.getLogger(FilmController.class);
-    private final HashMap<Integer, Film> films = new HashMap<>();
+    private final FilmService filmService;
+
+    @Autowired
+    public FilmController(FilmService filmService) {
+        this.filmService = filmService;
+    }
+
+    /**
+     * Возвращает фильм по id
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<Film> getFilmById(@PathVariable int id) {
+        return ResponseEntity.ok(filmService.getFilmById(id));
+    }
 
     /**
      * Возвращает все фильмы в виде списка
      */
     @GetMapping
     public ResponseEntity<List<Film>> getFilms() {
-        return ResponseEntity.ok(new ArrayList<>(films.values()));
+        return ResponseEntity.ok(filmService.getFilms());
     }
 
     /**
      * Добавляет новый фильм.
-     * Проверяет поля фильма на соответствие.
-     * Если всё хорошо, то создаёт копию переданного фильма, присваивает уникальный ID и сохраняет в контроллер.
      *
      * @param newFilm объект фильма, который нужно добавить
-     * @return копия созданного фильма с присвоенным ID
+     * @return ответ, содержащий созданный фильм с присвоенным ID
      */
     @PostMapping
     public ResponseEntity<Film> addFilm(@Valid @RequestBody Film newFilm) {
-        try {
-            checkIsValidFilm(newFilm);
-        } catch (ValidationException exception) {
-            log.error("Ошибка валидации данных фильма {} при добавлении: {}", newFilm.getId(), exception.getMessage());
-            throw exception;
-        }
-        log.trace("Данные фильма {} прошли валидацию при добавлении", newFilm.getId());
-
-        newFilm.setId(getNextId());
-        films.put(newFilm.getId(), newFilm);
-        log.info("Фильм {} добавлен", newFilm.getId());
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(newFilm);
+        Film createdFilm = filmService.addFilm(newFilm);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdFilm);
     }
 
     /**
      * Обновляет фильм.
-     * Проверяет поля переданного фильма на соответствие.
-     * Если всё хорошо и переданный фильм существует в контроллере, то создаёт копию и сохраняет в контроллер.
      *
      * @param updatedFilm объект фильма, который нужно обновить
-     * @return копия обновлённого фильма
+     * @return ответ, содержащий обновлённый фильм
      */
     @PutMapping
     public ResponseEntity<Film> updateFilm(@Valid @RequestBody Film updatedFilm) {
-        try {
-            checkIsValidFilm(updatedFilm);
-        } catch (ValidationException exception) {
-            log.error("Ошибка валидации данных фильма {} при обновлении: {}", updatedFilm.getId(),
-                    exception.getMessage());
-            throw exception;
-        }
-
-        log.trace("Фильм {} прошёл валидацию для обновления", updatedFilm.getId());
-        if (!films.containsKey(updatedFilm.getId())) {
-            String filmNotFound = "Фильм " + updatedFilm.getId() + " для обновления не найден";
-            log.error(filmNotFound);
-            throw new ValidationException(filmNotFound);
-        }
-
-        films.put(updatedFilm.getId(), updatedFilm);
-        log.info("Фильм {} обновлён", updatedFilm.getId());
-
-        return ResponseEntity.ok(updatedFilm);
+        Film savedFilm = filmService.updateFilm(updatedFilm);
+        return ResponseEntity.ok(savedFilm);
     }
 
     /**
-     * Генерирует следующий Id.
-     * Находит максимальный текущй Id и увеличивает его.
+     * Добавляет лайк к фильму
+     *
+     * @param id     идентификатор фильма, которому нужно добавить лайк.
+     * @param userId идентификатор пользователя, кто поставил лайк.
+     * @return пустой ответ со статусом 200
      */
-    private int getNextId() {
-        int currentMaxId = films.keySet()
-                .stream()
-                .mapToInt(id -> id)
-                .max()
-                .orElse(0);
-        return ++currentMaxId;
+    @PutMapping("/{id}/like/{userId}")
+    public ResponseEntity<Void> addLikeByUser(@PathVariable int id, @PathVariable int userId) {
+        filmService.addLike(id, userId);
+        return ResponseEntity.ok().build();
     }
 
     /**
-     * Проверяет переданный фильм на соответствие условиям.
-     * Если не удовлетворяет какой-то проверке, то выбрасывается ошибка
+     * Убирает лайк с фильма
+     *
+     * @param id     идентификатор фильма, которому нужно убрать лайк.
+     * @param userId идентификатор пользователя, чей лайк надо убрать.
+     * @return пустой ответ со статусом 200
      */
-    private void checkIsValidFilm(Film film) throws ValidationException {
-        if (film == null) {
-            throw new ValidationException("Фильм не найден");
-        }
+    @DeleteMapping("/{id}/like/{userId}")
+    public ResponseEntity<Void> removeLikeByUser(@PathVariable int id, @PathVariable int userId) {
+        filmService.removeLike(id, userId);
+        return ResponseEntity.ok().build();
+    }
 
-        if (film.getDescription().length() > FILM_DESCRIPTION_LENGTH) {
-            throw new ValidationException("Описание фильма не может быть больше 200 символов");
-        }
-
-        if (film.getReleaseDate().isBefore(EARLIEST_RELEASE_DATE)) {
-            throw new ValidationException("Дата релиза фильма не может быть раньше 28 декабря 1895 года");
-        }
-
-        if (film.getDuration() <= 0) {
-            throw new ValidationException("Продолжительность фильма должна быть положительным числом");
-        }
+    /**
+     * Возвращает самые популярные фильмы в виде списка.
+     *
+     * @param count количество фильмов, которое максимально надо вернуть
+     * @return список самых популярных фильмов
+     */
+    @GetMapping("/popular")
+    public ResponseEntity<List<Film>> getMostPopularFilms(
+            @RequestParam(required = false, defaultValue = "10") int count) {
+        return ResponseEntity.ok(filmService.getMostPopularFilms(count));
     }
 }

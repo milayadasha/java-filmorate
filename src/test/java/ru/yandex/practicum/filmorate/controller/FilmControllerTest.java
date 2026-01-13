@@ -3,8 +3,18 @@ package ru.yandex.practicum.filmorate.controller;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.FilmService;
+import ru.yandex.practicum.filmorate.service.UserService;
+import ru.yandex.practicum.filmorate.storage.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.InMemoryFilmStorage;
+import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
+import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.time.LocalDate;
 import java.time.Month;
@@ -28,12 +38,29 @@ class FilmControllerTest {
     private static final int FILM_DURATION_2 = 200;
     private static final int FILM_DURATION_INCORRECT = -100;
 
+    private static final int FILM_ID = 100;
+    private static final int FILM_COUNT_1 = 1;
+    private static final int FILM_DEFAULT_COUNT = 10;
+
+    private static final String USER_NAME = "Вася";
+    private static final String USER_EMAIL = "mail@mail.ru";
+    private static final String USER_LOGIN = "user";
+    private static final LocalDate USER_BIRTHDAY = LocalDate.of(1992, Month.DECEMBER, 12);
+    private static final Integer USER_ID = 567;
+
     FilmController filmController;
+    UserController userController;
 
     @BeforeEach
     @DisplayName("Инициализирует контроллер")
     void setUp() {
-        filmController = new FilmController();
+        UserStorage userStorage = new InMemoryUserStorage();
+        UserService userService = new UserService(userStorage);
+        userController = new UserController(userService);
+
+        FilmStorage filmStorage = new InMemoryFilmStorage();
+        FilmService filmService = new FilmService(filmStorage, userStorage);
+        filmController = new FilmController(filmService);
     }
 
     @Test
@@ -187,4 +214,173 @@ class FilmControllerTest {
                 "Фильм может быть обновлён с некорректной датой релиза");
     }
 
+    @Test
+    @DisplayName("При получении существующего фильма по id контроллер должен вернуть его")
+    void test_getFilmById_WhenFilmExists_ShouldReturnOne() {
+        //given
+        Film film = Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION).releaseDate(FILM_RELEASE_DATE)
+                .duration(FILM_DURATION).build();
+        Film createdFilm = filmController.addFilm(film).getBody();
+
+        //when
+        Film findFilm = filmController.getFilmById(createdFilm.getId()).getBody();
+
+        //then
+        assertNotNull(findFilm, "В контроллере нет фильмов");
+        assertEquals(FILM_NAME, findFilm.getName(), "В контроллере некорректный фильм");
+    }
+
+    @Test
+    @DisplayName("При получении несуществующего фильма по id контроллер должен вернуть ошибку")
+    void test_getFilmById_WhenFilmNotExists_ShouldThrowsError() {
+        //given && when && then
+        assertThrows(NotFoundException.class,
+                () -> filmController.getFilmById(FILM_ID).getBody(),
+                "Из контроллера получен несуществующий фильм");
+    }
+
+    @Test
+    @DisplayName("При добавлении лайка существующему фильму от существующего пользователя должен вернуться OK 200")
+    void test_addLikeByUser_WhenFilmAndUserExist_ShouldReturn200() {
+        //given
+        Film film = Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION).releaseDate(FILM_RELEASE_DATE)
+                .duration(FILM_DURATION).build();
+        Film createdFilm = filmController.addFilm(film).getBody();
+
+        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        User createdUser = userController.addUser(user).getBody();
+
+
+        //when
+        ResponseEntity<Void> response = filmController.addLikeByUser(createdFilm.getId(), createdUser.getId());
+
+        //then
+        assertEquals(HttpStatus.OK, response.getStatusCode(), "Вернулся не успешный ответ");
+    }
+
+    @Test
+    @DisplayName("При добавлении лайка существующему фильму от несуществующего пользователя должен вернуть ошибку")
+    void test_addLikeByUser_WhenUserNotExists_ShouldThrowsError() {
+        //given && when
+        Film film = Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION).releaseDate(FILM_RELEASE_DATE)
+                .duration(FILM_DURATION).build();
+        Film createdFilm = filmController.addFilm(film).getBody();
+
+        //then
+        assertThrows(NotFoundException.class, () -> filmController.addLikeByUser(createdFilm.getId(), USER_ID),
+                "Удалось поставить лайк от несуществующего пользователя");
+    }
+
+    @Test
+    @DisplayName("При добавлении лайка несуществующему фильму от существующего пользователя должен вернуть ошибку")
+    void test_addLikeByUser_WhenFilmNotExists_ShouldThrowsError() {
+        //given && when
+        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        User createdUser = userController.addUser(user).getBody();
+
+        //then
+        assertThrows(NotFoundException.class, () -> filmController.addLikeByUser(FILM_ID, createdUser.getId()),
+                "Удалось поставить лайк несуществующему фильму");
+    }
+
+    @Test
+    @DisplayName("При удалении лайка с существующего фильма от существующего пользователя должен вернуть OK 200")
+    void test_removeLikeByUser_WhenFilmAndUserExist_ShouldReturn200() {
+        //given
+        Film film = Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION).releaseDate(FILM_RELEASE_DATE)
+                .duration(FILM_DURATION).build();
+        Film createdFilm = filmController.addFilm(film).getBody();
+
+        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        User createdUser = userController.addUser(user).getBody();
+
+        //when
+        filmController.addLikeByUser(createdFilm.getId(), createdUser.getId());
+        ResponseEntity<Void> response = filmController.removeLikeByUser(createdFilm.getId(), createdUser.getId());
+
+        //then
+        assertEquals(HttpStatus.OK, response.getStatusCode(), "Вернулся не успешный ответ");
+    }
+
+    @Test
+    @DisplayName("При удалении лайка с существующего фильма от несуществующего пользователя должен вернуть ошибку")
+    void test_removeLikeByUser_WhenUserNotExists_ShouldThrowsError() {
+        //given && when
+        Film film = Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION).releaseDate(FILM_RELEASE_DATE)
+                .duration(FILM_DURATION).build();
+        Film createdFilm = filmController.addFilm(film).getBody();
+
+        //then
+        assertThrows(NotFoundException.class, () -> filmController.removeLikeByUser(createdFilm.getId(), USER_ID),
+                "Удалось убрать лайк от несуществующего пользователя");
+    }
+
+    @Test
+    @DisplayName("При удалении лайка с несуществующего фильма от существующего пользователя должен вернуть ошибку")
+    void test_removeLikeByUser_WhenFilmNotExists_ShouldThrowsError() {
+        //given && when
+        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        User createdUser = userController.addUser(user).getBody();
+
+        //then
+        assertThrows(NotFoundException.class, () -> filmController.removeLikeByUser(FILM_ID, createdUser.getId()),
+                "Удалось убрать лайк с несуществующего фильма");
+    }
+
+    @Test
+    @DisplayName("При запросе одного фильма должен вернуть самый популярный")
+    void test_getMostPopularFilms_WhenRequestOne_ShouldReturnOne() {
+        //given
+        Film film = Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION).releaseDate(FILM_RELEASE_DATE)
+                .duration(FILM_DURATION).build();
+        Film film2 = Film.builder().name(FILM_NAME_2).description(FILM_DESCRIPTION_2).releaseDate(FILM_RELEASE_DATE_2)
+                .duration(FILM_DURATION_2).build();
+        Film createdFilm = filmController.addFilm(film).getBody();
+        Film createdFilm2 = filmController.addFilm(film2).getBody();
+
+        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        User createdUser = userController.addUser(user).getBody();
+        User user2 = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        User createdUser2 = userController.addUser(user2).getBody();
+
+        //when
+        filmController.addLikeByUser(createdFilm.getId(), createdUser.getId());
+        filmController.addLikeByUser(createdFilm2.getId(), createdUser.getId());
+        filmController.addLikeByUser(createdFilm2.getId(), createdUser2.getId());
+        List<Film> popularFilms = filmController.getMostPopularFilms(FILM_COUNT_1).getBody();
+
+        //then
+        assertNotNull(popularFilms, "В контроллере нет популярных фильмов");
+        assertEquals(1, popularFilms.size(), "В контроллере не верное количество фильмов");
+        assertEquals(FILM_NAME_2, popularFilms.get(0).getName(), "В контроллере не корректный фильм");
+    }
+
+    @Test
+    @DisplayName("Если передано дефолтное количество фильмов, то должен вернуть все (до дефолтного включительно)")
+    void test_getMostPopularFilms_WhenRequestNothing_ShouldReturnAll() {
+        //given
+        Film film = Film.builder().name(FILM_NAME).description(FILM_DESCRIPTION).releaseDate(FILM_RELEASE_DATE)
+                .duration(FILM_DURATION).build();
+        Film film2 = Film.builder().name(FILM_NAME_2).description(FILM_DESCRIPTION_2).releaseDate(FILM_RELEASE_DATE_2)
+                .duration(FILM_DURATION_2).build();
+        Film createdFilm = filmController.addFilm(film).getBody();
+        Film createdFilm2 = filmController.addFilm(film2).getBody();
+
+        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        User createdUser = userController.addUser(user).getBody();
+        User user2 = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        User createdUser2 = userController.addUser(user2).getBody();
+
+        //when
+        filmController.addLikeByUser(createdFilm.getId(), createdUser.getId());
+        filmController.addLikeByUser(createdFilm2.getId(), createdUser.getId());
+        filmController.addLikeByUser(createdFilm2.getId(), createdUser2.getId());
+        List<Film> popularFilms = filmController.getMostPopularFilms(FILM_DEFAULT_COUNT).getBody();
+
+        //then
+        assertNotNull(popularFilms, "В контроллере нет популярных фильмов");
+        assertEquals(2, popularFilms.size(), "В контроллере не верное количество фильмов");
+        assertEquals(FILM_NAME_2, popularFilms.get(0).getName(), "В контроллере не корректный 1-ый фильм");
+        assertEquals(FILM_NAME, popularFilms.get(1).getName(), "В контроллере не корректный 2-ой фильм");
+    }
 }
