@@ -5,7 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.dto.user.NewUserRequest;
+import ru.yandex.practicum.filmorate.dto.user.UpdateUserRequest;
+import ru.yandex.practicum.filmorate.dto.user.UserDto;
 import ru.yandex.practicum.filmorate.service.UserService;
 import java.util.List;
 
@@ -23,7 +25,7 @@ public class UserController {
      * Возвращает пользователя по id
      */
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable int id) {
+    public ResponseEntity<UserDto> getUserById(@PathVariable int id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
@@ -31,7 +33,7 @@ public class UserController {
      * Возвращает всех пользователей в виде списка
      */
     @GetMapping
-    public ResponseEntity<List<User>> getUsers() {
+    public ResponseEntity<List<UserDto>> getUsers() {
         return ResponseEntity.ok(userService.getUsers());
     }
 
@@ -42,9 +44,8 @@ public class UserController {
      * @return ответ, содержащий созданного пользователя с присвоенным ID
      */
     @PostMapping
-    public ResponseEntity<User> addUser(@Valid @RequestBody User newUser) {
-        User createdUser = userService.addUser(newUser);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
+    public ResponseEntity<UserDto> addUser(@Valid @RequestBody NewUserRequest newUser) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.addUser(newUser));
     }
 
     /**
@@ -54,9 +55,8 @@ public class UserController {
      * @return ответ, содержащий обновлённого пользователя
      */
     @PutMapping
-    public ResponseEntity<User> updateUser(@Valid @RequestBody User updatedUser) {
-        User savedUser = userService.updateUser(updatedUser);
-        return ResponseEntity.ok(savedUser);
+    public ResponseEntity<UserDto> updateUser(@Valid @RequestBody UpdateUserRequest updatedUser) {
+        return ResponseEntity.ok(userService.updateUser(updatedUser));
     }
 
     /**
@@ -92,7 +92,7 @@ public class UserController {
      * @return список друзей-пользователей указанного пользователя.
      */
     @GetMapping("/{id}/friends")
-    public ResponseEntity<List<User>> getAllFriends(@PathVariable int id) {
+    public ResponseEntity<List<UserDto>> getAllFriends(@PathVariable int id) {
         return ResponseEntity.ok(userService.getUserFriendsById(id));
     }
 
@@ -104,7 +104,7 @@ public class UserController {
      * @return список общих друзей в виде списка пользователей.
      */
     @GetMapping("/{id}/friends/common/{otherId}")
-    public ResponseEntity<List<User>> getCommonFriends(@PathVariable int id, @PathVariable int otherId) {
+    public ResponseEntity<List<UserDto>> getCommonFriends(@PathVariable int id, @PathVariable int otherId) {
         return ResponseEntity.ok(userService.getCommonFriends(id, otherId));
     }
 }

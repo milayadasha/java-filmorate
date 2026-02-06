@@ -105,4 +105,28 @@ public class InMemoryUserStorage implements UserStorage {
                 .orElse(0);
         return ++currentMaxId;
     }
+
+    /**
+     * Заглушка для метода добавления в друзья
+     */
+    @Override
+    public void addFriends(int userId, int friendId) {
+        throw new NotFoundException("Метод не поддерживается");
+    }
+
+    /**
+     * Заглушка для метода удаления из друзей
+     */
+    @Override
+    public void removeFriends(int userId, int friendId) {
+        throw new NotFoundException("Метод не поддерживается");
+    }
+
+    /**
+     * Заглушка для метода получения друзей пользователя в виде списка id
+     */
+    @Override
+    public Set<Integer> getUserFriends(Integer userId) {
+        throw new NotFoundException("Метод не поддерживается");
+    }
 }

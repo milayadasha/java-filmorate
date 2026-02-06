@@ -107,4 +107,25 @@ public class InMemoryFilmStorage implements FilmStorage {
                 .orElse(0);
         return ++currentMaxId;
     }
+
+    /**
+     * Добавляет лайк.
+     */
+    public void addLike(int filmId, int userId) {
+        throw new NotFoundException("Метод не поддерживается");
+    }
+
+    /**
+     * Удаляет лайк.
+     */
+    public void removeLike(int filmId, int userId) {
+        throw new NotFoundException("Метод не поддерживается");
+    }
+
+    /**
+     * Возвращает популярные фильмы
+     */
+    public List<Film> getMostPopularFilms(int count) {
+        throw new NotFoundException("Метод не поддерживается");
+    }
 }

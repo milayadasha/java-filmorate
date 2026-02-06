@@ -1,23 +1,33 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import ru.yandex.practicum.filmorate.dto.user.NewUserRequest;
+import ru.yandex.practicum.filmorate.dto.user.UpdateUserRequest;
+import ru.yandex.practicum.filmorate.dto.user.UserDto;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
-import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.service.UserService;
-import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
-import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@JdbcTest
+@AutoConfigureTestDatabase
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
+@ComponentScan(basePackages = "ru.yandex.practicum.filmorate")
 class UserControllerTest {
     private static final String USER_NAME = "Вася";
     private static final String USER_NAME_2 = "Петя";
@@ -39,28 +49,32 @@ class UserControllerTest {
 
     private static final Integer USER_ID = 567;
 
-    UserController userController;
+    private static final String DELETE_USERS = "DELETE FROM users;";
+
+    private final UserController userController;
+    private final JdbcTemplate jdbcTemplate;
 
     @BeforeEach
-    @DisplayName("Инициализирует контроллер")
-    void setUp() {
-        UserStorage userStorage = new InMemoryUserStorage();
-        UserService userService = new UserService(userStorage);
-        userController = new UserController(userService);
+    @DisplayName("Чистим БД")
+    void cleanDatabase() {
+        jdbcTemplate.update(DELETE_USERS);
     }
 
     @Test
     @DisplayName("При добавлении двух пользователей контроллер должен возвращать их")
     void test_getUsers_WhenAddedUsers_ShouldReturnAll() {
         //given
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        User user2 = User.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2).birthday(USER_BIRTHDAY_2)
-                .build();
-
         //when
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
+                .build();
         userController.addUser(user);
+
+        NewUserRequest user2 = NewUserRequest.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2)
+                .birthday(USER_BIRTHDAY_2)
+                .build();
         userController.addUser(user2);
-        List<User> usersByController = userController.getUsers().getBody();
+        List<UserDto> usersByController = userController.getUsers().getBody();
 
         //then
         assertNotNull(usersByController, "В контроллере нет пользователей");
@@ -75,11 +89,13 @@ class UserControllerTest {
     @DisplayName("При добавлении пользователя с корректными полями контроллер должен добавить его")
     void test_addUser_WhenCorrectFields_ShouldAddToController() {
         //given
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
+                .build();
 
         //when
         userController.addUser(user);
-        List<User> usersByController = userController.getUsers().getBody();
+        List<UserDto> usersByController = userController.getUsers().getBody();
 
         //then
         assertNotNull(usersByController, "В контроллере нет пользователей");
@@ -91,7 +107,7 @@ class UserControllerTest {
     @DisplayName("При добавлении пользователя с некорректным логином контроллер должен выбросить ошибку")
     void test_addUser_WhenIncorrectLogin_ShouldThrowsError() {
         //given && when
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN_INCORRECT)
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN_INCORRECT)
                 .birthday(USER_BIRTHDAY).build();
 
         //then
@@ -104,11 +120,13 @@ class UserControllerTest {
     @DisplayName("При добавлении пользователя без имени в контроллере имя будет равно логину")
     void test_addUser_WhenNameIsNull_ShouldReturnNameWithLoginValue() {
         //given && when
-        User user = User.builder().email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
+        NewUserRequest user = NewUserRequest.builder().email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
+                .build();
 
         //when
         userController.addUser(user);
-        List<User> usersByController = userController.getUsers().getBody();
+        List<UserDto> usersByController = userController.getUsers().getBody();
 
         //then
         assertNotNull(usersByController, "В контроллере нет пользователей");
@@ -120,7 +138,7 @@ class UserControllerTest {
     @DisplayName("При добавлении пользователя с датой рождения в будущем контроллер должен выбросить ошибку")
     void test_addUser_WhenBirthdayInFuture_ShouldThrowsError() {
         //given && when
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
                 .birthday(USER_BIRTHDAY_INCORRECT).build();
 
         //then
@@ -133,13 +151,18 @@ class UserControllerTest {
     @DisplayName("При обновлении пользователя с корректными полями контроллер должен обновить его")
     void test_updateUser_WhenCorrectFields_ShouldUpdateInController() {
         //given
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        userController.addUser(user);
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
+                .build();
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
 
         //when
-        User updateUser = user.toBuilder().name(USER_NAME_2).build();
+        UpdateUserRequest updateUser = UpdateUserRequest.builder().id(userId).name(USER_NAME_2).email(USER_EMAIL)
+                .login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
+                .build();
         userController.updateUser(updateUser);
-        List<User> usersByController = userController.getUsers().getBody();
+        List<UserDto> usersByController = userController.getUsers().getBody();
 
         //then
         assertNotNull(usersByController, "В контроллере нет пользователей");
@@ -151,11 +174,16 @@ class UserControllerTest {
     @DisplayName("При обновлении пользователя с некорректным логином контроллер должен выбросить ошибку")
     void test_updateUser_WhenIncorrectLogin_ShouldThrowsError() {
         //given && when
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        userController.addUser(user);
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
+                .build();
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
 
         //when
-        User updateUser = user.toBuilder().login(USER_LOGIN_INCORRECT).build();
+        UpdateUserRequest updateUser = UpdateUserRequest.builder().id(userId).name(USER_NAME).email(USER_EMAIL)
+                .login(USER_LOGIN_INCORRECT)
+                .birthday(USER_BIRTHDAY)
+                .build();
 
         //then
         assertThrows(ValidationException.class,
@@ -163,33 +191,21 @@ class UserControllerTest {
                 "Пользователь обновлён с некорректным логином");
     }
 
-    @Test
-    @DisplayName("При обновлении пользователя без имени в контроллере имя будет равно логину")
-    void test_updateUser_WhenNameIsNull_ShouldReturnNameWithLoginValue() {
-        //given && when
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        userController.addUser(user);
-
-        //when
-        User updateUser = user.toBuilder().name("").build();
-        userController.updateUser(updateUser);
-        List<User> usersByController = userController.getUsers().getBody();
-
-        //then
-        assertNotNull(usersByController, "В контроллере нет пользователей");
-        assertEquals(1, usersByController.size(), "В контроллере не верное количество пользователей");
-        assertEquals(USER_LOGIN, usersByController.get(0).getName(), "Имя пользователя не равно логину");
-    }
 
     @Test
     @DisplayName("При обновлении пользователя с датой рождения в будущем контроллер должен выбросить ошибку")
     void test_updateUser_WhenBirthdayInFuture_ShouldThrowsError() {
         //given && when
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        userController.addUser(user);
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
+                .build();
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
 
         //when
-        User updateUser = user.toBuilder().birthday(USER_BIRTHDAY_INCORRECT).build();
+        UpdateUserRequest updateUser = UpdateUserRequest.builder().id(userId).name(USER_NAME).email(USER_EMAIL)
+                .login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY_INCORRECT)
+                .build();
 
         //then
         assertThrows(ValidationException.class,
@@ -201,11 +217,14 @@ class UserControllerTest {
     @DisplayName("При получении существующего пользователя по id контроллер должен вернуть его")
     void test_getUserById_WhenUserExists_ShouldReturnOne() {
         //given
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        User createdUser = userController.addUser(user).getBody();
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
+                .build();
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
+
 
         //when
-        User findUser = userController.getUserById(createdUser.getId()).getBody();
+        UserDto findUser = userController.getUserById(userId).getBody();
 
         //then
         assertNotNull(findUser, "В контроллере нет пользователей");
@@ -225,14 +244,18 @@ class UserControllerTest {
     @DisplayName("При добавлении в друзья существующих пользователей ответ должен быть OK 200")
     void test_addFriend_WhenUsersExist_ShouldReturn200() {
         //given
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        User user2 = User.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2).birthday(USER_BIRTHDAY_2)
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
                 .build();
-        User createdUser1 = userController.addUser(user).getBody();
-        User createdUser2 = userController.addUser(user2).getBody();
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
+
+        NewUserRequest user2 = NewUserRequest.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2)
+                .birthday(USER_BIRTHDAY_2)
+                .build();
+        int userId2 = Objects.requireNonNull(userController.addUser(user2).getBody()).getId();
 
         //when
-        ResponseEntity<Void> response = userController.addFriend(createdUser1.getId(), createdUser2.getId());
+        ResponseEntity<Void> response = userController.addFriend(userId, userId2);
 
         //then
         assertEquals(HttpStatus.OK, response.getStatusCode(),
@@ -243,12 +266,14 @@ class UserControllerTest {
     @DisplayName("При добавлении в друзья несуществующего пользователя контроллер должен выбросить ошибку")
     void test_addFriend_WhenOneUserNotExists_ShouldThrowsError() {
         //given && when
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        User createdUser1 = userController.addUser(user).getBody();
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
+                .build();
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
 
         //then
         assertThrows(NotFoundException.class,
-                () -> userController.addFriend(createdUser1.getId(), USER_ID),
+                () -> userController.addFriend(userId, USER_ID),
                 "Удалось добавить в друзья не существующего пользователя");
     }
 
@@ -256,15 +281,19 @@ class UserControllerTest {
     @DisplayName("При удалении из друзей существующих пользователей ответ должен быть OK 200")
     void test_removeFriend_WhenFriendsExist_ShouldReturn200() {
         //given
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        User user2 = User.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2).birthday(USER_BIRTHDAY_2)
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
                 .build();
-        User createdUser1 = userController.addUser(user).getBody();
-        User createdUser2 = userController.addUser(user2).getBody();
-        userController.addFriend(createdUser1.getId(), createdUser2.getId());
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
+
+        NewUserRequest user2 = NewUserRequest.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2)
+                .birthday(USER_BIRTHDAY_2)
+                .build();
+        int userId2 = Objects.requireNonNull(userController.addUser(user2).getBody()).getId();
+        userController.addFriend(userId, userId2);
 
         //when
-        ResponseEntity<Void> response = userController.removeFriend(createdUser1.getId(), createdUser2.getId());
+        ResponseEntity<Void> response = userController.removeFriend(userId, userId2);
 
         //then
         assertEquals(HttpStatus.OK, response.getStatusCode(),
@@ -275,12 +304,14 @@ class UserControllerTest {
     @DisplayName("При удалении из друзей несуществующего пользователя контроллер должен выбросить ошибку")
     void test_removeFriend_WhenOneFriendNotExist_ShouldReturn200() {
         //given && when
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        User createdUser1 = userController.addUser(user).getBody();
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
+                .build();
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
 
         //then
         assertThrows(NotFoundException.class,
-                () -> userController.removeFriend(createdUser1.getId(), USER_ID),
+                () -> userController.removeFriend(userId, USER_ID),
                 "Удалось удалить из друзей несуществующего пользователя");
     }
 
@@ -288,15 +319,19 @@ class UserControllerTest {
     @DisplayName("При получении всех друзей пользователя должен возвращаться корректный список")
     void test_getAllFriends_WhenAddFriends_ShouldReturnOne() {
         //given
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        User user2 = User.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2).birthday(USER_BIRTHDAY_2)
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
                 .build();
-        User createdUser1 = userController.addUser(user).getBody();
-        User createdUser2 = userController.addUser(user2).getBody();
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
+
+        NewUserRequest user2 = NewUserRequest.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2)
+                .birthday(USER_BIRTHDAY_2)
+                .build();
+        int userId2 = Objects.requireNonNull(userController.addUser(user2).getBody()).getId();
 
         //when
-        userController.addFriend(createdUser1.getId(), createdUser2.getId());
-        List<User> userFriends = userController.getAllFriends(createdUser1.getId()).getBody();
+        userController.addFriend(userId, userId2);
+        List<UserDto> userFriends = userController.getAllFriends(userId).getBody();
 
         //then
         assertNotNull(userFriends, "У пользователя нет друзей");
@@ -307,11 +342,13 @@ class UserControllerTest {
     @DisplayName("При отсутствии друзей у пользователя должен возвращаться пустой список")
     void test_getAllFriends_WhenNoFriends_ShouldReturnEmpty() {
         //given
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        User createdUser1 = userController.addUser(user).getBody();
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
+                .build();
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
 
         //when
-        List<User> userFriends = userController.getAllFriends(createdUser1.getId()).getBody();
+        List<UserDto> userFriends = userController.getAllFriends(userId).getBody();
 
         //then
         assertNotNull(userFriends, "Список друзей не проинициализировался");
@@ -322,19 +359,25 @@ class UserControllerTest {
     @DisplayName("При получении общих друзей пользователей должен возвращаться корректный список")
     void test_getCommonFriends_WhenAddSameFriend_ShouldReturnOne() {
         //given
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        User user2 = User.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2).birthday(USER_BIRTHDAY_2)
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
                 .build();
-        User user3 = User.builder().name(USER_NAME_3).email(USER_EMAIL_3).login(USER_LOGIN_3).birthday(USER_BIRTHDAY_3)
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
+
+        NewUserRequest user2 = NewUserRequest.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2)
+                .birthday(USER_BIRTHDAY_2)
                 .build();
-        User createdUser1 = userController.addUser(user).getBody();
-        User createdUser2 = userController.addUser(user2).getBody();
-        User createdUser3 = userController.addUser(user3).getBody();
+        int userId2 = Objects.requireNonNull(userController.addUser(user2).getBody()).getId();
+
+        NewUserRequest user3 = NewUserRequest.builder().name(USER_NAME_3).email(USER_EMAIL_3).login(USER_LOGIN_3)
+                .birthday(USER_BIRTHDAY_3)
+                .build();
+        int userId3 = Objects.requireNonNull(userController.addUser(user3).getBody()).getId();
 
         //when
-        userController.addFriend(createdUser1.getId(), createdUser3.getId());
-        userController.addFriend(createdUser2.getId(), createdUser3.getId());
-        List<User> commonFriends = userController.getCommonFriends(createdUser1.getId(), createdUser2.getId()).getBody();
+        userController.addFriend(userId, userId3);
+        userController.addFriend(userId2, userId3);
+        List<UserDto> commonFriends = userController.getCommonFriends(userId, userId2).getBody();
 
         //then
         assertNotNull(commonFriends, "У пользователя нет общих друзей");
@@ -345,19 +388,25 @@ class UserControllerTest {
     @DisplayName("При отсутствии общих друзей у пользователей должен возвращаться пустой список")
     void test_getCommonFriends_WhenAddNotSameFriend_ShouldReturnEmpty() {
         //given
-        User user = User.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN).birthday(USER_BIRTHDAY).build();
-        User user2 = User.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2).birthday(USER_BIRTHDAY_2)
+        NewUserRequest user = NewUserRequest.builder().name(USER_NAME).email(USER_EMAIL).login(USER_LOGIN)
+                .birthday(USER_BIRTHDAY)
                 .build();
-        User user3 = User.builder().name(USER_NAME_3).email(USER_EMAIL_3).login(USER_LOGIN_3).birthday(USER_BIRTHDAY_3)
+        int userId = Objects.requireNonNull(userController.addUser(user).getBody()).getId();
+
+        NewUserRequest user2 = NewUserRequest.builder().name(USER_NAME_2).email(USER_EMAIL_2).login(USER_LOGIN_2)
+                .birthday(USER_BIRTHDAY_2)
                 .build();
-        User createdUser1 = userController.addUser(user).getBody();
-        User createdUser2 = userController.addUser(user2).getBody();
-        User createdUser3 = userController.addUser(user3).getBody();
+        int userId2 = Objects.requireNonNull(userController.addUser(user2).getBody()).getId();
+
+        NewUserRequest user3 = NewUserRequest.builder().name(USER_NAME_3).email(USER_EMAIL_3).login(USER_LOGIN_3)
+                .birthday(USER_BIRTHDAY_3)
+                .build();
+        int userId3 = Objects.requireNonNull(userController.addUser(user3).getBody()).getId();
 
         //when
-        userController.addFriend(createdUser1.getId(), createdUser1.getId());
-        userController.addFriend(createdUser2.getId(), createdUser3.getId());
-        List<User> commonFriends = userController.getCommonFriends(createdUser1.getId(), createdUser2.getId()).getBody();
+        userController.addFriend(userId, userId2);
+        userController.addFriend(userId2, userId3);
+        List<UserDto> commonFriends = userController.getCommonFriends(userId, userId2).getBody();
 
         //then
         assertNotNull(commonFriends, "Список общих друзей не проинициализировался");

@@ -27,4 +27,6 @@ public class Film {
     private Integer duration;
 
     private Set<Integer> likes;
+    private Set<Genre> genres;
+    private Mpa mpa;
 }
