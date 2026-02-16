@@ -23,4 +23,19 @@ public interface FilmStorage {
      * Обновляет фильм.
      */
     Film updateFilm(Film updatedFilm);
+
+    /**
+     * Добавляет лайк.
+     */
+    void addLike(int filmId, int userId);
+
+    /**
+     * Удаляет лайк.
+     */
+    void removeLike(int filmId, int userId);
+
+    /**
+     * Возвращает популярные фильмы
+     */
+    List<Film> getMostPopularFilms(int count);
 }

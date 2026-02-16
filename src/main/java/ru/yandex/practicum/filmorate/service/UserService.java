@@ -4,8 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.dto.user.NewUserRequest;
+import ru.yandex.practicum.filmorate.dto.user.UpdateUserRequest;
+import ru.yandex.practicum.filmorate.dto.user.UserDto;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
+import ru.yandex.practicum.filmorate.mapper.UserMapper;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.UserStorage;
 
@@ -26,16 +30,16 @@ public class UserService {
      * Возвращает пользователя по id.
      * Вызывает метод хранилища по получению пользователя по id.
      */
-    public User getUserById(int id) {
-        return userStorage.getUserById(id);
+    public UserDto getUserById(int id) {
+        return UserMapper.mapToUserDto(userStorage.getUserById(id));
     }
 
     /**
      * Возвращает всех пользователей в виде списка.
      * Вызывает соответствующий метод хранилища.
      */
-    public List<User> getUsers() {
-        return userStorage.getUsers();
+    public List<UserDto> getUsers() {
+        return userStorage.getUsers().stream().map(UserMapper::mapToUserDto).toList();
     }
 
     /**
@@ -46,7 +50,8 @@ public class UserService {
      * @param newUser объект пользователя, который нужно добавить
      * @return созданный пользователь с присвоенным ID
      */
-    public User addUser(User newUser) {
+    public UserDto addUser(NewUserRequest newUserDto) {
+        User newUser = UserMapper.mapToUser(newUserDto);
         try {
             checkIsValidUser(newUser);
         } catch (ValidationException exception) {
@@ -55,7 +60,7 @@ public class UserService {
             throw exception;
         }
         log.trace("Данные новго пользователя c логином {} прошли валидацию при добавлении", newUser.getLogin());
-        return userStorage.addUser(newUser);
+        return UserMapper.mapToUserDto(userStorage.addUser(newUser));
     }
 
     /**
@@ -66,7 +71,10 @@ public class UserService {
      * @param updatedUser объект пользователя, который нужно обновить
      * @return обновлённый пользователь
      */
-    public User updateUser(User updatedUser) {
+    public UserDto updateUser(UpdateUserRequest updatedUserDto) {
+        User updatedUser = userStorage.getUserById(updatedUserDto.getId());
+        updatedUser = UserMapper.updateUserFields(updatedUser, updatedUserDto);
+
         try {
             checkIsValidUser(updatedUser);
         } catch (ValidationException exception) {
@@ -76,7 +84,7 @@ public class UserService {
         }
         log.info("Данные пользователя {} прошли валидацию при обновлении", updatedUser.getId());
 
-        return userStorage.updateUser(updatedUser);
+        return UserMapper.mapToUserDto(userStorage.updateUser(updatedUser));
     }
 
     /**
@@ -89,13 +97,11 @@ public class UserService {
         User secondUser = userStorage.getUserById(secondUserId);
         log.trace("Пользователь {} найден для добавления в друзья", secondUserId);
 
-        firstUser.getFriends().add(secondUserId);
-        secondUser.getFriends().add(firstUser.getId());
-        log.info("Пользователь {} добавлен в друзья пользователя {}.",
-                secondUserId, firstUserId);
+        if (firstUser.getFriends().contains(secondUserId)) {
+            throw new ValidationException("Пользователь уже добавлен в друзья");
+        }
 
-        userStorage.updateUser(firstUser);
-        userStorage.updateUser(secondUser);
+        userStorage.addFriends(firstUserId, secondUserId);
         log.trace("Пользователи обновлены в хранилище.");
     }
 
@@ -109,13 +115,7 @@ public class UserService {
         User secondUser = userStorage.getUserById(secondUserId);
         log.trace("Пользователь {} найден для удаления мз друзей", secondUserId);
 
-        firstUser.getFriends().remove(secondUserId);
-        secondUser.getFriends().remove(firstUserId);
-        log.info("Пользователь {} удален из друзей пользователя {}.",
-                secondUserId, firstUserId);
-
-        userStorage.updateUser(firstUser);
-        userStorage.updateUser(secondUser);
+        userStorage.removeFriends(firstUserId, secondUserId);
         log.trace("Пользователи обновлены в хранилище.");
     }
 
@@ -123,9 +123,9 @@ public class UserService {
      * Ищет общих друзей у пользователей
      * Если оба пользователя существуют, то возвращает список общих друзей.
      */
-    public List<User> getCommonFriends(int firstUserId, int secondUserId) {
-        List<User> firstFriends = getUserFriendsById(firstUserId);
-        List<User> secondFriends = getUserFriendsById(secondUserId);
+    public List<UserDto> getCommonFriends(int firstUserId, int secondUserId) {
+        List<UserDto> firstFriends = getUserFriendsById(firstUserId);
+        List<UserDto> secondFriends = getUserFriendsById(secondUserId);
         log.trace("Списки друзей пользователей для поиска общих друзей составлены", secondUserId);
 
         return firstFriends.stream()
@@ -137,11 +137,14 @@ public class UserService {
      * Возвращает всех друзей пользователя
      * Если пользователь существуюет, то возвращает список по id
      */
-    public List<User> getUserFriendsById(int userId) {
+    public List<UserDto> getUserFriendsById(int userId) {
         User user = userStorage.getUserById(userId);
         log.trace("Пользователь {} найден для поиска всех его друзей", userId);
 
-        return user.getFriends().stream().map(id -> userStorage.getUserById(id)).toList();
+        return user.getFriends().stream()
+                .map(id -> userStorage.getUserById(id))
+                .map(UserMapper::mapToUserDto)
+                .toList();
     }
 
     /**

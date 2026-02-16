@@ -5,7 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.dto.film.FilmDto;
+import ru.yandex.practicum.filmorate.dto.film.NewFilmRequest;
+import ru.yandex.practicum.filmorate.dto.film.UpdateFilmRequest;
 import ru.yandex.practicum.filmorate.service.FilmService;
 import java.util.List;
 
@@ -23,7 +25,7 @@ public class FilmController {
      * Возвращает фильм по id
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Film> getFilmById(@PathVariable int id) {
+    public ResponseEntity<FilmDto> getFilmById(@PathVariable int id) {
         return ResponseEntity.ok(filmService.getFilmById(id));
     }
 
@@ -31,32 +33,30 @@ public class FilmController {
      * Возвращает все фильмы в виде списка
      */
     @GetMapping
-    public ResponseEntity<List<Film>> getFilms() {
+    public ResponseEntity<List<FilmDto>> getFilms() {
         return ResponseEntity.ok(filmService.getFilms());
     }
 
     /**
      * Добавляет новый фильм.
      *
-     * @param newFilm объект фильма, который нужно добавить
+     * @param newFilmDto объект фильма, который нужно добавить
      * @return ответ, содержащий созданный фильм с присвоенным ID
      */
     @PostMapping
-    public ResponseEntity<Film> addFilm(@Valid @RequestBody Film newFilm) {
-        Film createdFilm = filmService.addFilm(newFilm);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdFilm);
+    public ResponseEntity<FilmDto> addFilm(@Valid @RequestBody NewFilmRequest newFilmDto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(filmService.addFilm(newFilmDto));
     }
 
     /**
      * Обновляет фильм.
      *
-     * @param updatedFilm объект фильма, который нужно обновить
+     * @param updatedFilmDto объект фильма, который нужно обновить
      * @return ответ, содержащий обновлённый фильм
      */
     @PutMapping
-    public ResponseEntity<Film> updateFilm(@Valid @RequestBody Film updatedFilm) {
-        Film savedFilm = filmService.updateFilm(updatedFilm);
-        return ResponseEntity.ok(savedFilm);
+    public ResponseEntity<FilmDto> updateFilm(@Valid @RequestBody UpdateFilmRequest updatedFilmDto) {
+        return ResponseEntity.ok(filmService.updateFilm(updatedFilmDto));
     }
 
     /**
@@ -92,7 +92,7 @@ public class FilmController {
      * @return список самых популярных фильмов
      */
     @GetMapping("/popular")
-    public ResponseEntity<List<Film>> getMostPopularFilms(
+    public ResponseEntity<List<FilmDto>> getMostPopularFilms(
             @RequestParam(required = false, defaultValue = "10") int count) {
         return ResponseEntity.ok(filmService.getMostPopularFilms(count));
     }
